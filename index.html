@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monday → Brevo Sync</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #16161f;
+    --border: #1e1e2e;
+    --border2: #2a2a3e;
+    --text: #e8e8f0;
+    --text-dim: #6b6b8a;
+    --text-muted: #3a3a55;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --monday: #f6ae2d;
+    --brevo: #0092ff;
+    --glow: rgba(108, 99, 255, 0.15);
+    --glow2: rgba(0, 146, 255, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 48px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .logo-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .logo-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .badge {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  .badge-monday {
+    background: rgba(246, 174, 45, 0.15);
+    color: var(--monday);
+    border: 1px solid rgba(246, 174, 45, 0.3);
+  }
+
+  .badge-arrow {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .badge-brevo {
+    background: rgba(0, 146, 255, 0.12);
+    color: var(--brevo);
+    border: 1px solid rgba(0, 146, 255, 0.25);
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--text) 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  /* Sections */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .section:focus-within {
+    border-color: var(--border2);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .section-header:hover { background: #1a1a24; }
+
+  .section-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 20px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    letter-spacing: 0.02em;
+  }
+
+  .section-status {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .section-status.done { color: var(--accent3); }
+  .section-status.error { color: var(--accent2); }
+
+  .section-body {
+    padding: 18px;
+  }
+
+  /* Grid inputs */
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .input-grid.cols-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  input, select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.12);
+  }
+
+  input::placeholder { color: var(--text-muted); }
+
+  select option { background: var(--surface2); color: var(--text); }
+
+  /* Buttons */
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border2);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--border2);
+    color: var(--text);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #7b73ff;
+    box-shadow: 0 4px 20px rgba(108,99,255,0.35);
+  }
+
+  .btn-danger {
+    background: rgba(255,101,132,0.12);
+    color: var(--accent2);
+    border: 1px solid rgba(255,101,132,0.2);
+  }
+
+  .btn-danger:hover { background: rgba(255,101,132,0.2); }
+
+  .btn-sync {
+    background: linear-gradient(135deg, var(--accent) 0%, #9b6fff 100%);
+    color: #fff;
+    font-size: 14px;
+    padding: 13px 32px;
+    box-shadow: 0 4px 24px rgba(108,99,255,0.3);
+  }
+
+  .btn-sync:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 32px rgba(108,99,255,0.45);
+  }
+
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* Mapping table */
+  .mapping-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .mapping-table th {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mapping-row td {
+    padding: 5px 4px;
+    vertical-align: middle;
+  }
+
+  .mapping-row.required-row td { padding-top: 4px; }
+
+  .row-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 5px 8px 5px 0 !important;
+    white-space: nowrap;
+    width: 60px;
+  }
+
+  .required-badge {
+    display: inline-block;
+    background: rgba(108,99,255,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(108,99,255,0.25);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-left: 4px;
+  }
+
+  .arrow-col {
+    width: 30px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .remove-col { width: 32px; text-align: center; }
+
+  .btn-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: all 0.1s;
+  }
+
+  .btn-remove:hover { background: rgba(255,101,132,0.15); color: var(--accent2); }
+
+  .add-row-btn {
+    margin-top: 10px;
+    font-size: 11px;
+    padding: 7px 14px;
+  }
+
+  /* Brevo attribute input with type hint */
+  .brevo-cell {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .type-tag {
+    font-size: 9px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 2px 5px;
+    border-radius: 2px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Divider between name mapping and extras */
+  .mapping-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+  }
+
+  /* Progress log */
+  .log-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    height: 260px;
+    overflow-y: auto;
+    font-size: 11.5px;
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-track { background: transparent; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .log-line { display: flex; gap: 8px; align-items: baseline; }
+  .log-time { color: var(--text-muted); flex-shrink: 0; font-size: 10px; }
+  .log-msg { color: var(--text-dim); }
+  .log-ok { color: var(--accent3); }
+  .log-err { color: var(--accent2); }
+  .log-info { color: var(--brevo); }
+  .log-warn { color: var(--monday); }
+
+  .log-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 80px 0;
+    text-align: center;
+  }
+
+  /* Summary stats */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-top: 2px;
+  }
+
+  .stat-box.ok .stat-num { color: var(--accent3); }
+  .stat-box.err .stat-num { color: var(--accent2); }
+  .stat-box.skip .stat-num { color: var(--monday); }
+
+  /* Action footer */
+  .action-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    flex: 1;
+  }
+
+  /* Spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
+  /* Notice */
+  .notice {
+    background: rgba(108, 99, 255, 0.08);
+    border: 1px solid rgba(108, 99, 255, 0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: 12px;
+  }
+
+  .notice strong { color: var(--accent); }
+
+  /* Group selector */
+  .groups-wrap {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .groups-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .groups-label-row label { margin: 0; }
+
+  .groups-actions { display: flex; gap: 6px; }
+
+  .groups-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .group-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: all 0.12s;
+    user-select: none;
+  }
+
+  .group-chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .group-chip.selected {
+    background: rgba(108,99,255,0.12);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .group-chip .chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .group-chip .chip-check {
+    font-size: 10px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .group-chip.selected .chip-check { opacity: 1; }
+
+  /* Collapsible */
+  .collapsible { display: none; }
+  .collapsible.open { display: block; }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .input-grid { grid-template-columns: 1fr; }
+    .input-grid.cols-3 { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-stack">
+      <div class="logo-badges">
+        <span class="badge badge-monday">Monday.com</span>
+        <span class="badge-arrow">→</span>
+        <span class="badge badge-brevo">Brevo</span>
+      </div>
+      <h1>Contact Sync</h1>
+      <p class="subtitle">Map board columns · push to contact lists · live progress log</p>
+    </div>
+  </header>
+
+  <!-- Step 1: Credentials -->
+  <div class="section" id="sec-creds">
+    <div class="section-header" onclick="toggleSection('sec-creds')">
+      <span class="section-num">01</span>
+      <span class="section-title">API Credentials</span>
+      <span class="section-status" id="creds-status">pending</span>
+    </div>
+    <div class="section-body collapsible open" id="sec-creds-body">
+      <div class="input-grid">
+        <div class="field-group">
+          <label>Monday.com API Token</label>
+          <input type="password" id="monday-token" placeholder="eyJhbGciOiJIUzI1NiJ9..." autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label>Monday Board ID</label>
+          <input type="text" id="monday-board" placeholder="1234567890">
+        </div>
+        <div class="field-group">
+          <label>Brevo API Key</label>
+          <input type="password" id="brevo-key" placeholder="xkeysib-..." autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label>Brevo List ID</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="brevo-list" placeholder="e.g. 5" style="flex:1">
+            <button class="btn btn-secondary" onclick="fetchBrevoLists()">
+              <span id="list-btn-icon">⟳</span> Fetch
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="notice">
+        <strong>Privacy note:</strong> All API calls are made directly from your browser. No credentials are stored or transmitted to any third party. This app can be hosted as a static file. Saved settings are stored only in your browser's localStorage.
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn btn-primary" onclick="saveSettings()" style="font-size:11px;padding:8px 16px">
+          💾 Save Settings
+        </button>
+        <button class="btn btn-danger" onclick="resetSettings()" style="font-size:11px;padding:8px 16px">
+          ✕ Reset / Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Board + Fetch Columns -->
+  <div class="section" id="sec-columns">
+    <div class="section-header" onclick="toggleSection('sec-columns')">
+      <span class="section-num">02</span>
+      <span class="section-title">Board Columns</span>
+      <span class="section-status" id="cols-status">pending</span>
+    </div>
+    <div class="section-body collapsible open" id="sec-columns-body">
+      <button class="btn btn-secondary" onclick="fetchColumns()" id="fetch-col-btn">
+        <span id="fetch-col-icon">⟳</span> Fetch Columns from Board
+      </button>
+      <div id="columns-preview" style="margin-top:12px;color:var(--text-muted);font-size:11px;"></div>
+      <div id="groups-wrap" class="groups-wrap" style="display:none">
+        <div class="groups-label-row">
+          <label>Filter by Group <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(leave all unselected to sync entire board)</span></label>
+          <div class="groups-actions">
+            <button class="btn btn-secondary" style="font-size:10px;padding:4px 10px" onclick="selectAllGroups()">All</button>
+            <button class="btn btn-secondary" style="font-size:10px;padding:4px 10px" onclick="clearAllGroups()">None</button>
+          </div>
+        </div>
+        <div class="groups-grid" id="groups-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Column Mapping -->
+  <div class="section" id="sec-mapping">
+    <div class="section-header" onclick="toggleSection('sec-mapping')">
+      <span class="section-num">03</span>
+      <span class="section-title">Field Mapping</span>
+      <span class="section-status" id="map-status">waiting for columns</span>
+    </div>
+    <div class="section-body collapsible open" id="sec-mapping-body">
+      <div id="mapping-container">
+        <p style="color:var(--text-muted);font-size:11px;">Fetch columns first to configure mapping.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Sync -->
+  <div class="section" id="sec-sync">
+    <div class="section-header" onclick="toggleSection('sec-sync')">
+      <span class="section-num">04</span>
+      <span class="section-title">Sync</span>
+      <span class="section-status" id="sync-status">ready</span>
+    </div>
+    <div class="section-body collapsible open" id="sec-sync-body">
+      <div id="log-wrap">
+        <div class="log-box" id="log-box">
+          <div class="log-empty">Sync log will appear here…</div>
+        </div>
+      </div>
+      <div class="stats-row" id="stats-row" style="display:none">
+        <div class="stat-box"><span class="stat-num" id="stat-total">0</span><div class="stat-label">Total</div></div>
+        <div class="stat-box ok"><span class="stat-num" id="stat-ok">0</span><div class="stat-label">Synced</div></div>
+        <div class="stat-box err"><span class="stat-num" id="stat-err">0</span><div class="stat-label">Errors</div></div>
+        <div class="stat-box skip"><span class="stat-num" id="stat-skip">0</span><div class="stat-label">Skipped</div></div>
+      </div>
+      <div class="action-bar">
+        <span class="action-hint" id="action-hint">Configure credentials and mapping first.</span>
+        <button class="btn btn-sync" id="sync-btn" onclick="startSync()" disabled>
+          <span id="sync-btn-icon">⚡</span> Sync Contacts
+        </button>
+        <button class="btn btn-danger" id="stop-btn" onclick="stopSync()" style="display:none;font-size:14px;padding:13px 24px">
+          ⬛ Stop
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+let boardColumns   = [];   // [{id, title, type}]
+let subitemColumns = [];   // [{id, title, type}]  — from the subitems board
+let boardGroups    = [];   // [{id, title, color}]
+let brevoLists     = [];
+let optionalRowCount = 0;
+let syncAborted = false;
+
+const BREVO_STD_ATTRS = ['EMAIL','FIRSTNAME','LASTNAME','SMS','COMPANY','BIRTHDATE','ADDRESS','CITY','COUNTRY','ZIPCODE','DOUBLE_OPT_IN'];
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+function toggleSection(id) {
+  const body = document.getElementById(id + '-body');
+  if (body) body.classList.toggle('open');
+}
+
+function now() {
+  return new Date().toLocaleTimeString('en-GB', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function log(msg, cls='') {
+  const box = document.getElementById('log-box');
+  const empty = box.querySelector('.log-empty');
+  if (empty) empty.remove();
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${now()}</span><span class="log-msg ${cls}">${msg}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(id, text, cls='') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'section-status ' + cls;
+}
+
+function inferBrevoType(colType) {
+  switch(colType) {
+    case 'email': return {attr:'EMAIL', type:'email'};
+    case 'phone': return {attr:'SMS', type:'text'};
+    case 'date': case 'date_time': return {attr:'', type:'date'};
+    case 'numbers': return {attr:'', type:'number'};
+    default: return {attr:'', type:'text'};
+  }
+}
+
+// ─── Fetch Brevo lists ────────────────────────────────────────────────────────
+async function fetchBrevoLists() {
+  const key = document.getElementById('brevo-key').value.trim();
+  if (!key) { alert('Enter your Brevo API key first.'); return; }
+  const icon = document.getElementById('list-btn-icon');
+  icon.className = 'spin'; icon.textContent = '⟳';
+  try {
+    const r = await fetch('https://api.brevo.com/v3/contacts/lists?limit=50&offset=0', {
+      headers: { 'api-key': key, 'accept': 'application/json' }
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.message || 'Brevo error');
+    brevoLists = d.lists || [];
+    // Show as datalist
+    let dl = document.getElementById('brevo-lists-dl');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'brevo-lists-dl'; document.body.appendChild(dl); }
+    dl.innerHTML = brevoLists.map(l=>`<option value="${l.id}" label="${l.name}">${l.id} – ${l.name}</option>`).join('');
+    document.getElementById('brevo-list').setAttribute('list','brevo-lists-dl');
+    if (brevoLists.length === 1) document.getElementById('brevo-list').value = brevoLists[0].id;
+    setStatus('creds-status', `${brevoLists.length} lists fetched`, 'done');
+  } catch(e) {
+    setStatus('creds-status', 'brevo error', 'error');
+    alert('Brevo error: ' + e.message);
+  }
+  icon.className = ''; icon.textContent = '⟳';
+}
+
+// ─── Fetch Monday columns + subitem columns ──────────────────────────────────
+async function fetchColumns() {
+  const token = document.getElementById('monday-token').value.trim();
+  const boardId = document.getElementById('monday-board').value.trim();
+  if (!token || !boardId) { alert('Enter Monday API token and Board ID first.'); return; }
+
+  const icon = document.getElementById('fetch-col-icon');
+  icon.className = 'spin'; icon.textContent = '⟳';
+  document.getElementById('fetch-col-btn').disabled = true;
+  setStatus('cols-status', 'loading…');
+  document.getElementById('columns-preview').textContent = '';
+
+  try {
+    // ── Query 1: board name, columns, groups ──────────────────────────────
+    const q1 = `{ boards(ids: [${boardId}]) { name columns { id title type settings_str } groups { id title color } } }`;
+    const d1 = await mondayPost(token, q1);
+    const board = d1.data?.boards?.[0];
+    if (!board) throw new Error('Board not found or no access.');
+
+    boardColumns   = board.columns.filter(c => c.type !== 'subtasks');
+    boardGroups    = board.groups || [];
+    subitemColumns = [];
+
+    const hasSubtasksCol = board.columns.some(c => c.type === 'subtasks');
+
+    // ── Query 2 (optional): get subitem column definitions via settings_str ─
+    if (hasSubtasksCol) {
+      setStatus('cols-status', 'loading subitem columns…');
+      try {
+        const subtasksCol = board.columns.find(c => c.type === 'subtasks');
+        const settings = JSON.parse(subtasksCol?.settings_str || '{}');
+        const subBoardId = settings.boardIds?.[0];
+        if (subBoardId) {
+          const q2 = `{ boards(ids: [${subBoardId}]) { columns { id title type } } }`;
+          const d2 = await mondayPost(token, q2);
+          const cols = d2.data?.boards?.[0]?.columns || [];
+          subitemColumns = cols.filter(c => c.type !== 'subtasks');
+        }
+      } catch(e) {
+        console.warn('Could not load subitem columns:', e.message);
+      }
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────
+    const prev = document.getElementById('columns-preview');
+    const subNote = subitemColumns.length
+      ? ` + <span style="color:var(--monday)">${subitemColumns.length} subitem cols</span>`
+      : '';
+    prev.innerHTML = `<span style="color:var(--accent3)">✓</span> `
+      + `<strong style="color:var(--text)">${escHtml(board.name)}</strong> — `
+      + `${boardColumns.length} columns${subNote}: `
+      + boardColumns.map(c => `<span style="color:var(--text-dim)">${escHtml(c.title)}</span>`).join(', ');
+
+    renderGroupChips();
+
+    const subLabel = subitemColumns.length ? ` · ${subitemColumns.length} subitem cols` : '';
+    setStatus('cols-status', `${boardColumns.length} cols · ${boardGroups.length} groups${subLabel}`, 'done');
+    buildMappingUI();
+    updateSyncButton();
+
+  } catch(e) {
+    setStatus('cols-status', 'error', 'error');
+    document.getElementById('columns-preview').textContent = 'Error: ' + e.message;
+  }
+
+  icon.className = ''; icon.textContent = '⟳';
+  document.getElementById('fetch-col-btn').disabled = false;
+}
+
+// ─── Group chip helpers ───────────────────────────────────────────────────────
+function renderGroupChips() {
+  const wrap = document.getElementById('groups-wrap');
+  const grid = document.getElementById('groups-grid');
+  if (!boardGroups.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const palette = ['#00c875','#579bfc','#ff158a','#f6ae2d','#784bd1','#00d1d1','#e2445c','#9cd326','#0086c0','#ff5ac4','#4eccc6','#cab641'];
+  grid.innerHTML = boardGroups.map((g, i) => {
+    const color = mondayColorToHex(g.color) || palette[i % palette.length];
+    return `
+      <div class="group-chip" id="chip-${g.id}" onclick="toggleGroupChip('${g.id}')">
+        <span class="chip-dot" style="background:${color}"></span>
+        <span>${escHtml(g.title)}</span>
+        <span class="chip-check">✓</span>
+      </div>`;
+  }).join('');
+}
+
+function mondayColorToHex(colorName) {
+  const map = {
+    'green':'#00c875','light-green':'#9cd326','bright-green':'#9cd326',
+    'blue':'#0086c0','light-blue':'#579bfc','dark-blue':'#0044b3',
+    'purple':'#784bd1','berry':'#7e3b8a','red':'#e2445c','dark-red':'#c4314b',
+    'orange':'#ffcb00','yellow':'#cab641','peach':'#ffadad',
+    'pink':'#ff158a','hot-pink':'#ff5ac4','turquoise':'#00d1d1',
+    'aquamarine':'#4eccc6','winter':'#9aadbd','grey':'#808080',
+    'brown':'#7f5347','indigo':'#5559df','sofia-pink':'#ff44cc',
+    'lipstick':'#ff007f','chili':'#e25b35',
+  };
+  return map[colorName] || null;
+}
+
+function toggleGroupChip(id) {
+  const chip = document.getElementById('chip-' + id);
+  if (chip) chip.classList.toggle('selected');
+}
+
+function selectAllGroups() {
+  document.querySelectorAll('.group-chip').forEach(c => c.classList.add('selected'));
+}
+
+function clearAllGroups() {
+  document.querySelectorAll('.group-chip').forEach(c => c.classList.remove('selected'));
+}
+
+function getSelectedGroupIds() {
+  const selected = [];
+  document.querySelectorAll('.group-chip.selected').forEach(c => {
+    selected.push(c.id.replace('chip-', ''));
+  });
+  return selected; // empty = all groups
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Build mapping UI ────────────────────────────────────────────────────────
+function buildMappingUI() {
+  const container = document.getElementById('mapping-container');
+  optionalRowCount = 0;
+
+  // Name column options — include subitems too
+  let nameColOpts = `<option value="">— select Name column —</option>`;
+  nameColOpts += `<optgroup label="Board Columns">`;
+  nameColOpts += boardColumns.map(c =>
+    `<option value="${c.id}" ${c.type==='name'||c.title.toLowerCase()==='name'?'selected':''}>${c.title}</option>`
+  ).join('');
+  nameColOpts += `</optgroup>`;
+  if (subitemColumns.length) {
+    nameColOpts += `<optgroup label="↳ Subitem Columns">`;
+    nameColOpts += subitemColumns.map(c =>
+      `<option value="sub:${c.id}" ${c.type==='name'||c.title.toLowerCase()==='name'?'':''}>↳ ${c.title}</option>`
+    ).join('');
+    nameColOpts += `</optgroup>`;
+  }
+
+  container.innerHTML = `
+    <table class="mapping-table">
+      <thead>
+        <tr>
+          <th>Monday Column</th>
+          <th class="arrow-col"></th>
+          <th>Brevo Attribute</th>
+          <th>Type</th>
+          <th class="remove-col"></th>
+        </tr>
+      </thead>
+      <tbody id="mapping-tbody">
+        <!-- Required: Name row -->
+        <tr class="mapping-row required-row" id="name-row">
+          <td>
+            <select id="map-name-col" onchange="onNameColChange()">
+              ${nameColOpts}
+            </select>
+          </td>
+          <td class="arrow-col">→</td>
+          <td colspan="2">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="map-name-attr" placeholder="FULLNAME" value="FULLNAME" style="flex:1;max-width:200px">
+              <span class="required-badge">required</span>
+            </div>
+          </td>
+          <td class="remove-col"></td>
+        </tr>
+        <tr><td colspan="5"><div class="mapping-divider"></div></td></tr>
+      </tbody>
+    </table>
+    <button class="btn btn-secondary add-row-btn" onclick="addMappingRow()">+ Add Mapping Row</button>
+  `;
+
+  // Add 9 optional rows by default
+  for (let i = 0; i < 9; i++) addMappingRow();
+
+  setStatus('map-status', 'configured', 'done');
+}
+
+function colOptionsHTML() {
+  let html = `<option value="">— none —</option>`;
+  html += `<optgroup label="Board Columns">`;
+  html += boardColumns.map(c => `<option value="${c.id}" data-type="${c.type}">${c.title} (${c.type})</option>`).join('');
+  html += `</optgroup>`;
+  if (subitemColumns.length) {
+    html += `<optgroup label="↳ Subitem Columns">`;
+    html += subitemColumns.map(c => `<option value="sub:${c.id}" data-type="${c.type}">↳ ${c.title} (${c.type})</option>`).join('');
+    html += `</optgroup>`;
+  }
+  return html;
+}
+
+function addMappingRow() {
+  const id = 'row-' + (++optionalRowCount);
+  const tbody = document.getElementById('mapping-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'mapping-row';
+  tr.id = id;
+  tr.innerHTML = `
+    <td>
+      <select onchange="onOptColChange('${id}')">
+        ${colOptionsHTML()}
+      </select>
+    </td>
+    <td class="arrow-col">→</td>
+    <td>
+      <input type="text" class="brevo-attr" list="brevo-attrs-dl" placeholder="ATTRIBUTE_NAME" style="min-width:140px">
+    </td>
+    <td>
+      <select class="brevo-type" style="min-width:80px">
+        <option value="text">text</option>
+        <option value="email">email</option>
+        <option value="date">date</option>
+        <option value="number">number</option>
+        <option value="boolean">boolean</option>
+      </select>
+    </td>
+    <td class="remove-col">
+      <button class="btn-remove" onclick="removeMappingRow('${id}')" title="Remove">×</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+
+  // Ensure datalist exists
+  if (!document.getElementById('brevo-attrs-dl')) {
+    const dl = document.createElement('datalist');
+    dl.id = 'brevo-attrs-dl';
+    dl.innerHTML = BREVO_STD_ATTRS.map(a=>`<option value="${a}">`).join('');
+    document.body.appendChild(dl);
+  }
+}
+
+function removeMappingRow(id) {
+  const row = document.getElementById(id);
+  if (row) row.remove();
+}
+
+function onNameColChange() {
+  // auto-fill logic could go here
+}
+
+function onOptColChange(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const sel = row.querySelector('select');
+  const rawVal = sel.value;
+  if (!rawVal) return;
+  const isSub = rawVal.startsWith('sub:');
+  const colId = isSub ? rawVal.slice(4) : rawVal;
+  const col = isSub
+    ? subitemColumns.find(c => c.id === colId)
+    : boardColumns.find(c => c.id === colId);
+  if (!col) return;
+  const inferred = inferBrevoType(col.type);
+  if (inferred.attr) row.querySelector('.brevo-attr').value = inferred.attr;
+  row.querySelector('.brevo-type').value = inferred.type;
+}
+
+// ─── Gather mapping config ────────────────────────────────────────────────────
+function getMappingConfig() {
+  const nameColRaw = document.getElementById('map-name-col')?.value || '';
+  const nameIsSub  = nameColRaw.startsWith('sub:');
+  const nameColId  = nameIsSub ? nameColRaw.slice(4) : nameColRaw;
+  const firstAttr  = document.getElementById('map-name-first')?.value.trim() || 'FIRSTNAME';
+  const lastAttr   = document.getElementById('map-name-last')?.value.trim() || 'LASTNAME';
+  const nameAttr   = document.getElementById('map-name-attr')?.value.trim() || firstAttr || 'FULLNAME';
+
+  const rows = [];
+  const tbody = document.getElementById('mapping-tbody');
+  if (!tbody) return { nameColId, nameIsSub, nameAttr, rows };
+
+  tbody.querySelectorAll('.mapping-row:not(#name-row)').forEach(tr => {
+    const sel = tr.querySelector('select');
+    const attrInput = tr.querySelector('.brevo-attr');
+    const typeInput = tr.querySelector('.brevo-type');
+    if (!sel || !attrInput) return;
+    const rawVal = sel.value;
+    if (!rawVal) return;
+    const isSub = rawVal.startsWith('sub:');
+    const colId = isSub ? rawVal.slice(4) : rawVal;
+    const attr = attrInput.value.trim().toUpperCase();
+    const type = typeInput?.value || 'text';
+    if (colId && attr) rows.push({ colId, isSub, attr, type });
+  });
+
+  // Does any mapping touch subitem columns?
+  const needsSubitems = nameIsSub || rows.some(r => r.isSub);
+
+  return { nameColId, nameIsSub, nameAttr, rows, needsSubitems };
+}
+
+function updateSyncButton() {
+  const btn = document.getElementById('sync-btn');
+  const hint = document.getElementById('action-hint');
+  const ready = boardColumns.length > 0;
+  btn.disabled = !ready;
+  hint.textContent = ready
+    ? `${boardColumns.length} columns loaded · configure mapping above then click Sync.`
+    : 'Fetch columns first.';
+}
+
+// ─── Fetch all Monday board items (parallel groups, paginated) ────────────────
+async function fetchAllItems(token, boardId, groupIds, needsSubitems) {
+  if (groupIds && groupIds.length > 0) {
+    // Fetch all selected groups in parallel
+    const results = await Promise.all(
+      groupIds.map(gid => fetchGroupItems(token, boardId, gid, needsSubitems))
+    );
+    return results.flat();
+  }
+  // Full board — paginated sequentially (cursor-based, can't parallelise pages)
+  return fetchBoardItemsPaged(token, boardId, needsSubitems);
+}
+
+function makeItemFragment(needsSubitems) {
+  const sub = needsSubitems
+    ? `subitems { id name column_values { id text value column { id type title } } }`
+    : '';
+  return `id name group { id title } column_values { id text value column { id type title } } ${sub}`;
+}
+
+async function fetchBoardItemsPaged(token, boardId, needsSubitems) {
+  const frag = makeItemFragment(needsSubitems);
+  let cursor = null, allItems = [], page = 0;
+  while (true) {
+    page++;
+    const cursorArg = cursor ? `, cursor: "${cursor}"` : '';
+    const query = `{ boards(ids:[${boardId}]) { items_page(limit:100${cursorArg}) { cursor items { ${frag} } } } }`;
+    const d = await mondayPost(token, query);
+    const pd = d.data?.boards?.[0]?.items_page;
+    if (!pd) throw new Error('No items_page in response');
+    allItems = allItems.concat(pd.items || []);
+    log(`  Page ${page}: ${pd.items?.length ?? 0} items (total: ${allItems.length})`, 'log-info');
+    if (!pd.cursor || syncAborted) break;
+    cursor = pd.cursor;
+  }
+  return allItems;
+}
+
+async function fetchGroupItems(token, boardId, groupId, needsSubitems) {
+  const frag = makeItemFragment(needsSubitems);
+  const groupTitle = boardGroups.find(g => g.id === groupId)?.title || groupId;
+  let cursor = null, allItems = [], page = 0;
+  while (true) {
+    page++;
+    const cursorArg = cursor ? `, cursor: "${cursor}"` : '';
+    const query = `{ boards(ids:[${boardId}]) { groups(ids:["${groupId}"]) { items_page(limit:100${cursorArg}) { cursor items { ${frag} } } } } }`;
+    const d = await mondayPost(token, query);
+    const group = d.data?.boards?.[0]?.groups?.[0];
+    if (!group) throw new Error(`Group "${groupTitle}" not found`);
+    const pd = group.items_page;
+    allItems = allItems.concat(pd.items || []);
+    log(`  Group "${groupTitle}" p${page}: ${pd.items?.length ?? 0} items`, 'log-info');
+    if (!pd.cursor || syncAborted) break;
+    cursor = pd.cursor;
+  }
+  return allItems;
+}
+
+async function mondayPost(token, query) {
+  const r = await fetch('https://api.monday.com/v2', {
+    method: 'POST',
+    headers: {
+      'Authorization': token,
+      'Content-Type': 'application/json',
+      'API-Version': '2024-01'
+    },
+    body: JSON.stringify({ query })
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`Monday API HTTP ${r.status}: ${text.slice(0, 200)}`);
+  }
+  const d = await r.json();
+  if (d.errors?.length) throw new Error(d.errors.map(e => e.message).join('; '));
+  return d;
+}
+
+// ─── Map a single board item (no subitems) → one Brevo contact ───────────────
+function mapSingleContact(item, subitem, config) {
+  // item        = parent board item (always present)
+  // subitem     = specific subitem object, or null if we're mapping parent-only
+  const contact = { attributes: {} };
+
+  function getVal(colId, isSub) {
+    if (!isSub) {
+      const cv = item.column_values?.find(c => c.id === colId);
+      return cv?.text || '';
+    }
+    if (!subitem) return '';
+    const cv = subitem.column_values?.find(c => c.id === colId);
+    return cv?.text || '';
+  }
+
+  // Name row
+  if (config.nameColId) {
+    const raw = getVal(config.nameColId, config.nameIsSub) || (config.nameIsSub ? subitem?.name : item.name) || '';
+    contact.attributes[config.nameAttr] = raw.trim();
+  }
+
+  // Optional rows
+  config.rows.forEach(row => {
+    let val = getVal(row.colId, row.isSub);
+    if (!val) return;
+    if (row.attr === 'EMAIL')        val = val.toLowerCase().trim();
+    else if (row.type === 'number')  val = parseFloat(val.replace(/[^0-9.-]/g,'')) || 0;
+    else if (row.type === 'date')    { try { val = new Date(val).toISOString().split('T')[0]; } catch(e){} }
+    else if (row.attr === 'SMS')     val = val.replace(/\s+/g,'');
+
+    if (row.attr === 'EMAIL') contact.email = val;
+    else contact.attributes[row.attr] = val;
+  });
+
+  return contact;
+}
+
+// ─── Expand one board item into a flat list of Brevo contacts ─────────────────
+// If any mapping uses a subitem column, each subitem becomes its own contact
+// (inheriting parent board-column values). Otherwise the item itself is one contact.
+function expandItemToContacts(item, config) {
+  if (!config.needsSubitems) {
+    return [mapSingleContact(item, null, config)];
+  }
+
+  const subitems = item.subitems || [];
+  if (subitems.length === 0) {
+    // Parent item has no subitems — still try to make a contact from parent fields
+    const c = mapSingleContact(item, null, config);
+    return c.email ? [c] : [];
+  }
+
+  return subitems.map(sub => mapSingleContact(item, sub, config));
+}
+
+// ─── Batch import contacts to Brevo (up to 150 per call) ─────────────────────
+// Uses /v3/contacts/importContacts which is async on Brevo's side but returns
+// synchronously with a processId we can ignore — contacts land within seconds.
+async function brevoImportBatch(brevoKey, listId, contacts) {
+  const attrKeys = new Set();
+  for (const c of contacts) Object.keys(c.attributes || {}).forEach(k => attrKeys.add(k));
+
+  const headers = ['EMAIL', ...attrKeys];
+  const csvRows = contacts.map(c => {
+    return headers.map(h => {
+      let val = h === 'EMAIL' ? c.email : (c.attributes?.[h] ?? '');
+      val = String(val ?? '');
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        val = '"' + val.replace(/"/g, '""') + '"';
+      }
+      return val;
+    }).join(',');
+  });
+  const csv = [headers.join(','), ...csvRows].join('\n');
+
+  const r = await fetch('https://api.brevo.com/v3/contacts/import', {
+    method: 'POST',
+    headers: { 'api-key': brevoKey, 'Content-Type': 'application/json', 'accept': 'application/json' },
+    body: JSON.stringify({
+      fileBody: csv,
+      listIds: [parseInt(listId)],
+      updateEnabled: true,
+      emailBlacklist: false,
+      smsBlacklist: false
+    })
+  });
+
+  if (r.status === 202 || r.status === 200) return { imported: contacts.length };
+  const d = await r.json();
+  throw new Error(d.message || `HTTP ${r.status}`);
+}
+
+// ─── Main sync ────────────────────────────────────────────────────────────────
+const BATCH_SIZE = 150; // Brevo import limit per call
+const CONCURRENCY = 4;  // parallel batch uploads
+
+async function startSync() {
+  const token    = document.getElementById('monday-token').value.trim();
+  const boardId  = document.getElementById('monday-board').value.trim();
+  const brevoKey = document.getElementById('brevo-key').value.trim();
+  const listId   = document.getElementById('brevo-list').value.trim();
+
+  if (!token || !boardId || !brevoKey || !listId) {
+    alert('Fill in all credentials and list ID before syncing.');
+    return;
+  }
+
+  const config = getMappingConfig();
+  const hasEmail = config.rows.some(r => r.attr === 'EMAIL');
+  if (!hasEmail) {
+    alert('You must map a column to EMAIL so Brevo can identify contacts.');
+    return;
+  }
+
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('stats-row').style.display = 'none';
+  ['stat-total','stat-ok','stat-err','stat-skip'].forEach(id => document.getElementById(id).textContent = '0');
+
+  const btn = document.getElementById('sync-btn');
+  const btnIcon = document.getElementById('sync-btn-icon');
+  btn.disabled = true;
+  btnIcon.className = 'spin'; btnIcon.textContent = '⟳';
+  syncAborted = false;
+  const stopBtn = document.getElementById('stop-btn');
+  stopBtn.style.display = 'inline-flex';
+  stopBtn.disabled = false;
+  stopBtn.textContent = '⬛ Stop';
+  setStatus('sync-status', 'running…');
+
+  let total = 0, ok = 0, err = 0, skip = 0;
+
+  try {
+    // ── Step 1: fetch Monday items ──────────────────────────────────────────
+    log('Fetching board items from Monday.com…', 'log-info');
+    const selectedGroups = getSelectedGroupIds();
+    if (selectedGroups.length > 0) {
+      const names = selectedGroups.map(id => boardGroups.find(g=>g.id===id)?.title || id).join(', ');
+      log(`  Group filter: ${names}`, 'log-info');
+    } else {
+      log('  No group filter — syncing entire board', 'log-info');
+    }
+
+    const items = await fetchAllItems(token, boardId, selectedGroups, config.needsSubitems);
+    log(`✓ ${items.length} parent items fetched`, 'log-ok');
+
+    // ── Step 2: expand to contacts ──────────────────────────────────────────
+    const validContacts = [], skipped = [];
+    for (const item of items) {
+      const contacts = expandItemToContacts(item, config);
+      for (const c of contacts) {
+        if (!c.email) skipped.push({ contact: c, parentName: item.name });
+        else validContacts.push(c);
+      }
+    }
+
+    // Log skipped
+    for (const { contact, parentName } of skipped) {
+      skip++;
+      const name = contact.attributes[config.nameAttr] || parentName || '?';
+      log(`⚠ Skipped "${name}" — no EMAIL value`, 'log-warn');
+    }
+
+    total = validContacts.length + skip;
+    const subNote = config.needsSubitems ? ` (from ${items.length} items × subitems)` : '';
+    log(`✓ ${validContacts.length} contacts with email${subNote}, ${skip} skipped`, 'log-ok');
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-skip').textContent  = skip;
+    document.getElementById('stats-row').style.display = 'grid';
+
+    if (validContacts.length === 0) {
+      log('No contacts with email addresses to sync.', 'log-warn');
+      setStatus('sync-status', 'nothing to sync', 'error');
+      btn.disabled = false; btnIcon.className = ''; btnIcon.textContent = '⚡';
+      return;
+    }
+
+    // ── Step 3: chunk into batches ──────────────────────────────────────────
+    const batches = [];
+    for (let i = 0; i < validContacts.length; i += BATCH_SIZE) {
+      batches.push(validContacts.slice(i, i + BATCH_SIZE));
+    }
+    log(`Uploading ${validContacts.length} contacts in ${batches.length} batch${batches.length > 1 ? 'es' : ''} (${BATCH_SIZE}/batch, ${CONCURRENCY} parallel)…`, 'log-info');
+
+    // ── Step 4: run batches with controlled concurrency ─────────────────────
+    let batchIdx = 0;
+    async function runNextBatch() {
+      while (batchIdx < batches.length && !syncAborted) {
+        const idx = batchIdx++;
+        const batch = batches[idx];
+        const from = idx * BATCH_SIZE + 1;
+        const to   = from + batch.length - 1;
+        try {
+          await brevoImportBatch(brevoKey, listId, batch);
+          ok += batch.length;
+          document.getElementById('stat-ok').textContent = ok;
+          log(`✓ Batch ${idx+1}/${batches.length}: contacts ${from}–${to} imported`, 'log-ok');
+        } catch(e) {
+          err += batch.length;
+          document.getElementById('stat-err').textContent = err;
+          log(`✗ Batch ${idx+1}/${batches.length} failed (${from}–${to}): ${e.message}`, 'log-err');
+        }
+      }
+    }
+
+    // Launch CONCURRENCY workers in parallel
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, runNextBatch));
+
+    if (syncAborted) log('⚠ Sync aborted by user', 'log-warn');
+    log(`── Sync complete: ${ok} imported, ${skip} skipped, ${err} failed ──`, ok > 0 ? 'log-ok' : 'log-warn');
+    setStatus('sync-status', `done · ${ok} synced`, 'done');
+
+  } catch(e) {
+    log(`✗ Fatal error: ${e.message}`, 'log-err');
+    setStatus('sync-status', 'error', 'error');
+  }
+
+  btn.disabled = false;
+  btnIcon.className = ''; btnIcon.textContent = '⚡';
+  stopBtn.style.display = 'none';
+}
+
+function stopSync() {
+  syncAborted = true;
+  document.getElementById('stop-btn').disabled = true;
+  document.getElementById('stop-btn').textContent = 'Stopping…';
+  log('⚠ Stop requested — finishing current batch…', 'log-warn');
+}
+
+// ─── Save / Load / Reset settings ────────────────────────────────────────────
+const STORAGE_KEY = 'monday_brevo_sync_settings';
+
+function saveSettings() {
+  const mappingRows = [];
+  document.querySelectorAll('#mapping-tbody .mapping-row:not(#name-row)').forEach(tr => {
+    const sel       = tr.querySelector('select');
+    const attrInput = tr.querySelector('.brevo-attr');
+    const typeInput = tr.querySelector('.brevo-type');
+    if (sel && attrInput) {
+      mappingRows.push({
+        colVal : sel.value,
+        attr   : attrInput.value,
+        type   : typeInput?.value || 'text'
+      });
+    }
+  });
+
+  const settings = {
+    mondayToken  : document.getElementById('monday-token').value,
+    mondayBoard  : document.getElementById('monday-board').value,
+    brevoKey     : document.getElementById('brevo-key').value,
+    brevoList    : document.getElementById('brevo-list').value,
+    savedColumns : boardColumns,
+    savedSubCols : subitemColumns,
+    savedGroups  : boardGroups,
+    nameColVal   : document.getElementById('map-name-col')?.value || '',
+    nameAttr     : document.getElementById('map-name-attr')?.value || 'FULLNAME',
+    mappingRows,
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    showSaveToast('Settings saved ✓');
+  } catch(e) {
+    alert('Could not save settings: ' + e.message);
+  }
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    // Credentials
+    if (s.mondayToken) document.getElementById('monday-token').value = s.mondayToken;
+    if (s.mondayBoard) document.getElementById('monday-board').value = s.mondayBoard;
+    if (s.brevoKey)    document.getElementById('brevo-key').value    = s.brevoKey;
+    if (s.brevoList)   document.getElementById('brevo-list').value   = s.brevoList;
+
+    // Restore board columns + groups into memory
+    if (s.savedColumns?.length) {
+      boardColumns   = s.savedColumns;
+      subitemColumns = s.savedSubCols || [];
+      boardGroups    = s.savedGroups  || [];
+
+      const prev = document.getElementById('columns-preview');
+      const subNote = subitemColumns.length
+        ? ` + <span style="color:var(--monday)">${subitemColumns.length} subitem cols</span>`
+        : '';
+      prev.innerHTML = `<span style="color:var(--accent3)">✓</span> `
+        + `<strong style="color:var(--text)">(restored from save)</strong> — `
+        + `${boardColumns.length} columns${subNote}`;
+
+      setStatus('cols-status', `${boardColumns.length} cols · ${boardGroups.length} groups (saved)`, 'done');
+      renderGroupChips();
+      buildMappingUI();
+      updateSyncButton();
+
+      // Restore name row
+      if (s.nameColVal) {
+        const nameColSel = document.getElementById('map-name-col');
+        if (nameColSel) nameColSel.value = s.nameColVal;
+      }
+      if (s.nameAttr) {
+        const nameAttrIn = document.getElementById('map-name-attr');
+        if (nameAttrIn) nameAttrIn.value = s.nameAttr;
+      }
+
+      // Restore optional mapping rows
+      if (s.mappingRows?.length) {
+        document.querySelectorAll('#mapping-tbody .mapping-row:not(#name-row)').forEach(r => r.remove());
+        optionalRowCount = 0;
+        s.mappingRows.forEach(saved => {
+          addMappingRow();
+          const lastRow = document.getElementById('row-' + optionalRowCount);
+          if (!lastRow) return;
+          const sel       = lastRow.querySelector('select');
+          const attrInput = lastRow.querySelector('.brevo-attr');
+          const typeInput = lastRow.querySelector('.brevo-type');
+          if (sel)       sel.value       = saved.colVal;
+          if (attrInput) attrInput.value = saved.attr;
+          if (typeInput) typeInput.value = saved.type;
+        });
+      }
+    }
+  } catch(e) { /* ignore */ }
+}
+
+function resetSettings() {
+  if (!confirm('Clear all saved settings and wipe the form?')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  ['monday-token','monday-board','brevo-key','brevo-list'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  showSaveToast('Settings cleared ✓');
+}
+
+function showSaveToast(msg) {
+  let toast = document.getElementById('save-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'save-toast';
+    toast.style.cssText = `
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+      background:#16161f; border:1px solid var(--accent); color:var(--accent3);
+      font-family:'DM Mono',monospace; font-size:12px;
+      padding:8px 20px; border-radius:6px; z-index:9999;
+      box-shadow:0 4px 20px rgba(108,99,255,0.25);
+      opacity:0; transition:opacity 0.2s;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2200);
+}
+
+// Init
+loadSettings();
+document.querySelectorAll('.collapsible').forEach(el => el.classList.add('open'));
+</script>
+</body>
+</html>
